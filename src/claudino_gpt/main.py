@@ -50,7 +50,11 @@ def main(training_configuration_path: str, model_configuration_path: str):
     device_name = torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu"
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    print(f"Training on {device_name}")
+    print(f"Training on {device} ({device_name})")
+
+    total_parameters = model.get_human_readable_number_of_parameters_human()
+    print(f"Model has {total_parameters} parameters")
+    
     run_training_loop(model, train_dataset, validation_dataset, optimizer, device, training_configuration)
 
 

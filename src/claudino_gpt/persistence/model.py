@@ -3,6 +3,9 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
+from claudino_gpt.configurations.model_configuration import ModelConfiguration
+from claudino_gpt.model.claudino_gpt import ClaudinoGPT
+
 
 def save_claudino_gpt_model(model, save_path, model_name="claudino_gpt"):
     """
@@ -152,9 +155,9 @@ def cleanup_old_models(
     
 
 def load_claudino_gpt_model(
-    model_path: Union[str, Path], 
-    model_class: Optional[Any] = None,
-    device: str = 'cpu'
+    model_path: Union[str, Path],
+    configuration: ModelConfiguration,
+    device: str
 ) -> Optional[torch.nn.Module]:
     """
     Load a ClaudinoGPT model from disk using its state dictionary.
@@ -179,18 +182,12 @@ def load_claudino_gpt_model(
         state_dict = torch.load(model_path, map_location=device)
         
         # If model_class is provided, recreate the model and load state dict
-        if model_class is not None:
-            model = model_class()
-            model.load_state_dict(state_dict)
-            model.to(device)
-            model.eval()
-            print(f"Model successfully loaded from {model_path}")
-            return model
-        else:
-            # Try to infer model class from the file name or directory structure
-            # This assumes you have access to the model definition in your codebase
-            print("Warning: model_class not provided. Please provide the model class to properly load the model.")
-            return None
+        model = ClaudinoGPT(configuration)
+        model.load_state_dict(state_dict)
+        model.to(device)
+        model.eval()
+        print(f"Model successfully loaded from {model_path}")
+        return model
             
     except Exception as e:
         print(f"Error loading model from state dict: {e}")
@@ -198,7 +195,7 @@ def load_claudino_gpt_model(
 
 def load_claudino_gpt_full_model(
     model_path: Union[str, Path], 
-    device: str = 'cpu'
+    device: str
 ) -> Optional[torch.nn.Module]:
     """
     Load a complete ClaudinoGPT model including its architecture from disk.
@@ -231,7 +228,6 @@ def load_claudino_gpt_full_model(
 def load_claudino_gpt_model_with_config(
     model_path: Union[str, Path], 
     config_path: Optional[Union[str, Path]] = None,
-    model_class: Optional[Any] = None,
     device: str = 'cpu'
 ) -> Optional[Dict[str, Any]]:
     """
@@ -286,7 +282,7 @@ def load_claudino_gpt_model_with_config(
 def load_claudino_gpt_model_from_state_dict(
     model_path: Union[str, Path], 
     model_class: Any,
-    device: str = 'cpu'
+    device: str
 ) -> Optional[torch.nn.Module]:
     """
     Load a ClaudinoGPT model from disk using its state dictionary and recreate the model structure.

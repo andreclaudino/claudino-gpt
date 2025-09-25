@@ -1,3 +1,4 @@
+from readable_number import ReadableNumber
 import torch
 from torch import nn
 
@@ -23,6 +24,17 @@ class ClaudinoGPT(nn.Module):
             bias=False
         )
 
+        self._init_weights()
+
+    def _init_weights(self):
+        for module in self.modules():
+            if isinstance(module, (nn.Linear)):
+                torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+                if module.bias is not None:
+                    torch.nn.init.zeros_(module.bias)
+            elif isinstance(module, nn.Embedding):
+                torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
     def forward(self, x):
         _, sequence_length = x.shape
         
@@ -39,3 +51,25 @@ class ClaudinoGPT(nn.Module):
         logits = self._output_head(x)
 
         return logits
+
+    def get_number_of_parameters(self) -> int:
+        """
+        Returns the total number of trainable parameters in the model.
+
+        Returns:
+            int: Number of trainable parameters.
+        """
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+    
+    def get_human_readable_number_of_parameters_human(self) -> str:
+        """
+        Returns the total number of trainable parameters in the model
+        as human readable format.
+
+        Returns:
+            str: Number of trainable parameters as human readable format
+        """
+        number_of_parameters = self.get_number_of_parameters()
+        human_readable = ReadableNumber(number_of_parameters, use_shortform=True)
+
+        return str(human_readable)
