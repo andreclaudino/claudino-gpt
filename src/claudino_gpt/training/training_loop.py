@@ -31,20 +31,15 @@ def run_training_loop(
     os.makedirs(tensorboard_folder_path, exist_ok=True)
     os.makedirs(checkpoints_dir, exist_ok=True)
 
-    # Carregar checkpoint mais recente, se existir
-    global_step = -1
-    tokens_seen = 0
-    train_losses = []
-    validation_losses = []
-    track_token_seen = []
 
+    # Carregar checkpoint mais recente, se existir
     loaded_step, loaded_tokens, success = load_latest_training_state(model, optimizer, configuration, device=device)
     if success and loaded_step is not None:
-        global_step = loaded_step
+        last_step = loaded_step
         tokens_seen = loaded_tokens
-        print(f"✅ Retomando do step {global_step} com {tokens_seen} tokens processados.")
+        print(f"✅ Retomando do step {last_step} com {tokens_seen} tokens processados.")
     else:
-        global_step = -1
+        last_step = -1
         tokens_seen = 0
         print("🆕 Iniciando do zero.")
 
@@ -58,13 +53,11 @@ def run_training_loop(
     model.train()
 
     for batch_idx, (input_batch, target_batch) in enumerate(tqdm(train_data_loader)):
-        # Calcula o step global atual
-        current_global_step = len(train_data_loader) + batch_idx
 
         # Pula batches já processados
-        if current_global_step <= global_step:
+        if batch_idx <= last_step:
             continue
-
+        
         input_batch = input_batch.to(device)
         target_batch = target_batch.to(device)
 
@@ -77,28 +70,23 @@ def run_training_loop(
             scaler.update()
 
         tokens_seen += input_batch.size(0)
-        global_step = current_global_step
 
         # Avaliação periódica
-        if global_step % configuration.evaluation_frequency == 0:
+        if batch_idx % configuration.evaluation_frequency == 0:
             train_loss, validation_loss = _evaluate_model(
                 model, train_data_loader, validation_data_loader, device, configuration.evaluation_iteration
             )
-            train_losses.append(train_loss)
-            validation_losses.append(validation_loss)
-            track_token_seen.append(tokens_seen)
 
-            write_metric_to_tensorboard("loss", "train", train_loss, global_step, tensorboard_writer)
-            write_metric_to_tensorboard("loss", "validation", validation_loss, global_step, tensorboard_writer)
+            write_metric_to_tensorboard("loss", "train", train_loss, batch_idx, tensorboard_writer)
+            write_metric_to_tensorboard("loss", "validation", validation_loss, batch_idx, tensorboard_writer)
             tensorboard_writer.flush()
 
         # Salvamento periódico
-        if global_step % configuration.checkpoint_frequency == 0:
-            save_training_state(model, optimizer, global_step, configuration, tokens_seen)
+        if batch_idx % configuration.checkpoint_frequency == 0:
+            save_training_state(model, optimizer, batch_idx, configuration, tokens_seen)
 
-    save_training_state(model, optimizer, global_step, configuration, tokens_seen) # type: ignore
+    save_training_state(model, optimizer, batch_idx, configuration, tokens_seen) # type: ignore
 
-    return train_losses, validation_losses, track_token_seen
 
 
 def _evaluate_model(
