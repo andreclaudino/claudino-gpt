@@ -45,7 +45,10 @@ def main(training_configuration_path: str, model_configuration_path: str):
     
     optimizer = create_optimizer(model, training_configuration)
 
-    device = torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu"
+    device_name = torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    print(f"Training on {device_name}")
     run_training_loop(model, train_dataset, validation_dataset, optimizer, device, training_configuration)
 
 
