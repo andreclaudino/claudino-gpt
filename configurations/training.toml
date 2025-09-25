@@ -1,0 +1,19 @@
+random_seed = 123456789
+
+learning_rate = 0.0004
+weight_decay = 0.1
+
+batch_size = 32
+number_of_epochs = 4
+
+evaluation_frequency = 800
+evaluation_iteration = 10
+
+train_source_path = "datasets/tokenized/split=train"
+validation_source_path = "datasets/tokenized/split=test"
+
+checkpoint_frequency = 800
+
+output_path = "trained/"
+
+total_models_to_keep = 5
