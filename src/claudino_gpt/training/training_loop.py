@@ -2,13 +2,13 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import os
-import datetime
 
 from claudino_gpt.configurations.training_configuration import TrainingConfiguration
 from claudino_gpt.model.claudino_gpt import ClaudinoGPT
-from claudino_gpt.persistence.metrics import write_metric_to_file
 from claudino_gpt.persistence.model import save_claudino_gpt_model, cleanup_old_models
-from claudino_gpt.training.metrics import calculate_batch_loss, calculate_dataset_loss, create_tensorboard_writer, write_metric_to_tensorboard, write_model_architecture_to_tensorboard
+from claudino_gpt.training.metrics import calculate_batch_loss, calculate_dataset_loss,\
+    create_tensorboard_writer, write_metric_to_tensorboard,\
+    write_model_architecture_to_tensorboard
 
 
 def run_training_loop(

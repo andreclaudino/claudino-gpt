@@ -40,3 +40,6 @@ dev = [
     "pytest>=8.4.2",
 ]
 
+
+[project.scripts]
+train = "claudino_gpt.main:main"
