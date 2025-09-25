@@ -12,8 +12,8 @@ FEATURES_COLUMN_NAME = "context"
 NEXT_TOKEN_COLUMN_NAME = "next_token"
 
 @click.command()
-@click.option("--training-configuration-path", type=click.STRING)
-@click.option("--model-configuration-path", type=click.STRING)
+@click.option("--training-configuration-path", type=click.STRING, required=True)
+@click.option("--model-configuration-path", type=click.STRING, required=True)
 def main(training_configuration_path: str, model_configuration_path: str):
     training_configuration = load_training_configuration(training_configuration_path)
     model_configuration = load_model_configuration(model_configuration_path)

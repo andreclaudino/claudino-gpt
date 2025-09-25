@@ -1,4 +1,3 @@
-from turtle import forward
 from torch import nn
 
 from claudino_gpt.configurations.model_configuration import ModelConfiguration
