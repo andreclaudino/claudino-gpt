@@ -32,7 +32,8 @@ def main(training_configuration_path: str, model_configuration_path: str):
         features_column_name=FEATURES_COLUMN_NAME,
         label_column_name=NEXT_TOKEN_COLUMN_NAME,
         batch_size=training_configuration.batch_size,
-        max_seq_length=model_configuration.context_legth
+        max_seq_length=model_configuration.context_legth,
+        data_loading_workers_count=training_configuration.data_loading_workers_count
     )
 
     validation_dataset = load_parquet_data(
@@ -40,7 +41,8 @@ def main(training_configuration_path: str, model_configuration_path: str):
         features_column_name=FEATURES_COLUMN_NAME,
         label_column_name=NEXT_TOKEN_COLUMN_NAME,
         batch_size=training_configuration.batch_size,
-        max_seq_length=model_configuration.context_legth
+        max_seq_length=model_configuration.context_legth,
+        data_loading_workers_count=training_configuration.data_loading_workers_count
     )
     
     optimizer = create_optimizer(model, training_configuration)
