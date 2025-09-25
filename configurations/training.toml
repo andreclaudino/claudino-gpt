@@ -5,7 +5,7 @@ weight_decay = 0.1
 
 batch_size = 32
 number_of_epochs = 4
-data_loading_workers_count = 4
+data_loading_workers_count = 0
 
 evaluation_frequency = 800
 evaluation_iteration = 10
