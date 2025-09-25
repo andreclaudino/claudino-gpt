@@ -10,7 +10,8 @@ def load_parquet_data(
     features_column_name: str,
     label_column_name: str,
     batch_size: int,
-    max_seq_length: int
+    max_seq_length: int,
+    data_loading_workers_count: int
 ) -> DataLoader:
     """
     Load a partition from multiple Parquet files lazily.
@@ -46,7 +47,13 @@ def load_parquet_data(
     )
 
     # Create and return the DataLoader
-    dataset_loader = DataLoader(lazy_dataset, batch_size=batch_size, shuffle=False)
+    dataset_loader = DataLoader(
+        lazy_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        pin_memory=True,
+        num_workers=data_loading_workers_count
+    )
 
     return dataset_loader # type: ignore
 

@@ -34,11 +34,15 @@ def run_training_loop(
 
 
     for epoch in range(configuration.number_of_epochs):
+        model.to(device)
         model.train()
 
         print(f"Epoch {epoch + 1}/{configuration.number_of_epochs}")
 
         for (input_batch, target_batch) in tqdm(train_data_loader, desc=f"Training epoch #{epoch}"):
+            input_batch.to(device)
+            target_batch.to(device)
+            
             optimizer.zero_grad()
             
             loss = calculate_batch_loss(input_batch, target_batch, model, device)
