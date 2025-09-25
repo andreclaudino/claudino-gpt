@@ -97,3 +97,46 @@ class LazyParquetDataset(Dataset):
         # Since we loaded one row, features and label are tensors of shape (1, ...)
         # We squeeze to remove the batch dimension of 1
         return features.squeeze(0), label.squeeze(0)
+
+
+class RepeatedOrInfiniteDataset(Dataset):
+    """
+    Wrapper around LazyParquetDataset to support:
+      - Finite repetition (epochs > 1)
+      - Infinite repetition (infinite=True)
+    """
+
+    def __init__(
+        self,
+        base_dataset: LazyParquetDataset,
+        epochs: int = 1,
+        infinite: bool = False,
+    ):
+        if infinite and epochs != 1:
+            # Quando infinite=True, epochs é ignorado
+            pass
+        self.base_dataset = base_dataset
+        self.epochs = epochs
+        self.infinite = infinite
+        self._base_len = len(base_dataset)
+
+        if self.infinite:
+            # Para DataLoader funcionar com sampler, damos um "comprimento fictício"
+            # suficientemente grande. Usamos um valor arbitrário alto.
+            # NOTA: Em modo infinito, __len__ não deve ser usado para controlar epochs!
+            self._effective_length = 10**12  # 1 trilhão — "infinito" para efeitos práticos
+        else:
+            self._effective_length = self._base_len * self.epochs
+
+    def __len__(self) -> int:
+        return self._effective_length
+
+    def __getitem__(self, index: int):
+        if self.infinite:
+            # Mapeia índice para o dataset base com módulo
+            base_index = index % self._base_len
+        else:
+            if index >= self._effective_length:
+                raise IndexError(f"Index {index} out of range for dataset of length {self._effective_length}")
+            base_index = index % self._base_len
+        return self.base_dataset[base_index]

@@ -1,325 +1,141 @@
-import torch
 import os
-from pathlib import Path
-from typing import Any, Dict, Optional, Union
-
-from claudino_gpt.configurations.model_configuration import ModelConfiguration
+import glob
+from claudino_gpt.configurations.training_configuration import TrainingConfiguration
+import torch
+from typing import Optional, Tuple
 from claudino_gpt.model.claudino_gpt import ClaudinoGPT
 
 
-def save_claudino_gpt_model(model, save_path, model_name="claudino_gpt"):
-    """
-    Save the ClaudinoGPT model to disk.
-    
-    Args:
-        model: The ClaudinoGPT model instance to save
-        save_path: Directory path where the model should be saved
-        model_name: Name to use for saving the model file
-    
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        # Ensure the save directory exists
-        Path(save_path).mkdir(parents=True, exist_ok=True)
-        
-        # Define the full path for the model file
-        model_file_path = os.path.join(save_path, f"{model_name}.pth")
-        
-        # Save the model state dict
-        torch.save(model.state_dict(), model_file_path)
-        
-        print(f"Model successfully saved to {model_file_path}")
-        return True
-        
-    except Exception as e:
-        print(f"Error saving model: {e}")
-        return False
+def save_training_state(
+    model: ClaudinoGPT,
+    optimizer: torch.optim.Optimizer,
+    global_step: int,
+    configuration: TrainingConfiguration,
+    tokens_seen: int,
+) -> str:
+    checkpoints_dir = os.path.join(configuration.output_path, "checkpoints")
+    os.makedirs(checkpoints_dir, exist_ok=True)
 
-def save_claudino_gpt_full_model(model, save_path, model_name="claudino_gpt"):
-    """
-    Save the complete ClaudinoGPT model including architecture.
+    checkpoint_path = os.path.join(checkpoints_dir, f"checkpoint_{global_step}.pth")
     
-    Args:
-        model: The ClaudinoGPT model instance to save
-        save_path: Directory path where the model should be saved
-        model_name: Name to use for saving the model file
-    
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        # Ensure the save directory exists
-        Path(save_path).mkdir(parents=True, exist_ok=True)
-        
-        # Define the full path for the complete model file
-        model_file_path = os.path.join(save_path, f"{model_name}_complete.pth")
-        
-        # Save the entire model (architecture + state dict)
-        torch.save(model, model_file_path)
-        
-        print(f"Complete model successfully saved to {model_file_path}")
-        return True
-        
-    except Exception as e:
-        print(f"Error saving complete model: {e}")
-        return False
+    torch.save({
+        'global_step': global_step,
+        'tokens_seen': tokens_seen,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+    }, checkpoint_path)
 
-def save_claudino_gpt_with_config(model, config, save_path, model_name="claudino_gpt"):
-    """
-    Save the ClaudinoGPT model along with its configuration.
-    
-    Args:
-        model: The ClaudinoGPT model instance to save
-        config: Configuration dictionary for the model
-        save_path: Directory path where the model should be saved
-        model_name: Name to use for saving the model file
-    
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        # Ensure the save directory exists
-        Path(save_path).mkdir(parents=True, exist_ok=True)
-        
-        # Save model state dict
-        model_file_path = os.path.join(save_path, f"{model_name}_state_dict.pth")
-        torch.save(model.state_dict(), model_file_path)
-        
-        # Save configuration
-        config_file_path = os.path.join(save_path, f"{model_name}_config.json")
-        import json
-        with open(config_file_path, 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        print(f"Model and config successfully saved to {model_file_path} and {config_file_path}")
-        return True
-        
-    except Exception as e:
-        print(f"Error saving model with config: {e}")
-        return False
-    
-def cleanup_old_models(
-    source_folder: Union[str, Path], 
-    total_models_to_keep: int
-) -> bool:
-    """
-    Keep only the most recent files in the specified folder, deleting older ones.
-    
-    Args:
-        source_folder: Path to the folder containing models to manage
-        total_models_to_keep: Number of most recent files to keep (default: 5)
-    
-    Returns:
-        bool: True if successful, False otherwise
-    
-    Raises:
-        ValueError: If total_models_to_keep is negative
-    """
-    if total_models_to_keep < 0:
-        raise ValueError("total_models_to_keep must be non-negative")
-    
-    try:
-        # Convert to Path object for easier handling
-        source_path = Path(source_folder)
-        
-        # Check if folder exists
-        if not source_path.exists():
-            print(f"Folder {source_folder} does not exist")
-            return False
-            
-        if not source_path.is_dir():
-            print(f"{source_folder} is not a directory")
-            return False
-        
-        # Get all files in the folder
-        files = [f for f in source_path.iterdir() if f.is_file()]
-        
-        # Sort files by modification time (newest first)
-        files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-        
-        # Keep only the specified number of most recent files
-        files_to_delete = files[total_models_to_keep:]
-        
-        # Delete older files
-        for file in files_to_delete:
-            file.unlink()
-            print(f"Deleted old model file: {file}")
-            
-        print(f"Successfully maintained {total_models_to_keep} most recent models")
-        return True
-        
-    except Exception as e:
-        print(f"Error cleaning up old models: {e}")
-        return False
-    
+    _cleanup_old_checkpoints(checkpoints_dir, configuration.total_models_to_keep)
 
-def load_claudino_gpt_model(
-    model_path: Union[str, Path],
-    configuration: ModelConfiguration,
+    return checkpoint_path
+
+
+def _cleanup_old_checkpoints(checkpoints_dir: str, total_to_keep: int):
+    """
+    Remove os checkpoints mais antigos, mantendo apenas os `total_to_keep` mais recentes.
+    Assume que os arquivos seguem o padrão: checkpoint_<step>.pth
+    """
+    if total_to_keep <= 0:
+        return
+
+    checkpoint_files = glob.glob(os.path.join(checkpoints_dir, "checkpoint_*.pth"))
+    if len(checkpoint_files) <= total_to_keep:
+        return
+
+    # Extrai o step de cada arquivo e ordena por step (decrescente = mais recente primeiro)
+    def extract_step(filepath: str) -> int:
+        basename = os.path.basename(filepath)
+        # Remove "checkpoint_" e ".pth", depois converte para int
+        try:
+            return int(basename.replace("checkpoint_", "").replace(".pth", ""))
+        except ValueError:
+            return -1  # Ignora arquivos mal formatados
+
+    checkpoint_files.sort(key=extract_step, reverse=True)
+    files_to_delete = checkpoint_files[total_to_keep:]
+
+    for f in files_to_delete:
+        try:
+            os.remove(f)
+        except OSError:
+            pass  # Ignora erros de remoção
+
+
+def load_latest_training_state(
+    model: ClaudinoGPT,
+    optimizer: torch.optim.Optimizer,
+    configuration,
     device: str
-) -> Optional[torch.nn.Module]:
+) -> Tuple[Optional[int], Optional[int], bool]:
     """
-    Load a ClaudinoGPT model from disk using its state dictionary.
-    
-    Args:
-        model_path: Full path to the model file
-        model_class: The ClaudinoGPT model class to recreate the model structure (optional)
-        device: Device to load the model on ('cpu' or 'cuda')
-    
-    Returns:
-        torch.nn.Module: Loaded model instance if successful, None otherwise
+    Tenta carregar o checkpoint mais recente. Se falhar, tenta o próximo mais recente,
+    até que todos os checkpoints tenham sido testados. Retorna (global_step, tokens_seen, success).
     """
-    try:
-        model_file_path = Path(model_path)
-        
-        # Check if model file exists
-        if not model_file_path.exists():
-            print(f"Model file {model_path} does not exist")
-            return None
-            
-        # Load the state dict
-        state_dict = torch.load(model_path, map_location=device)
-        
-        # If model_class is provided, recreate the model and load state dict
-        model = ClaudinoGPT(configuration)
-        model.load_state_dict(state_dict)
-        model.to(device)
-        model.eval()
-        print(f"Model successfully loaded from {model_path}")
-        return model
-            
-    except Exception as e:
-        print(f"Error loading model from state dict: {e}")
-        return None
+    checkpoints_dir = os.path.join(configuration.output_path, "checkpoints")
+    if not os.path.exists(checkpoints_dir):
+        return None, None, False
 
-def load_claudino_gpt_full_model(
-    model_path: Union[str, Path], 
+    checkpoint_files = glob.glob(os.path.join(checkpoints_dir, "checkpoint_*.pth"))
+    if not checkpoint_files:
+        return None, None, False
+
+    # Ordena do mais recente (maior step) para o mais antigo
+    def extract_step(filepath: str) -> int:
+        basename = os.path.basename(filepath)
+        try:
+            return int(basename.replace("checkpoint_", "").replace(".pth", ""))
+        except ValueError:
+            return -1  # Ignora arquivos mal formatados
+
+    checkpoint_files.sort(key=extract_step, reverse=True)
+
+    # Tenta carregar cada checkpoint, do mais recente ao mais antigo
+    for checkpoint_path in checkpoint_files:
+        try:
+            print(f"Tentando carregar checkpoint: {checkpoint_path}")
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+
+            # Validação mínima: garantir que as chaves essenciais existam
+            if 'model_state_dict' not in checkpoint or 'optimizer_state_dict' not in checkpoint:
+                print(f"⚠️  Checkpoint {checkpoint_path} está incompleto. Pulando.")
+                continue
+
+            model.load_state_dict(checkpoint['model_state_dict'])
+            model = model.to(device)
+
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+            global_step = checkpoint.get('global_step', None)
+            tokens_seen = checkpoint.get('tokens_seen', 0)
+
+            if global_step is None:
+                print(f"⚠️  Checkpoint {checkpoint_path} não contém 'global_step'. Pulando.")
+                continue
+
+            print(f"✅ Checkpoint carregado com sucesso: {checkpoint_path}")
+            return global_step, tokens_seen, True
+
+        except (RuntimeError, OSError, EOFError, ValueError, KeyError) as e:
+            print(f"❌ Falha ao carregar {checkpoint_path}: {e}. Tentando próximo checkpoint...")
+            os.remove(checkpoint_path)
+            print(f"🗑️  Checkpoint inválido removido: {checkpoint_path}")
+            continue
+
+    # Nenhum checkpoint foi carregado com sucesso
+    print("🚫 Nenhum checkpoint válido encontrado.")
+    return None, None, False
+
+
+def convert_checkpoint_to_inference_model(
+    checkpoint_path: str,
+    output_model_path: str,
     device: str
-) -> Optional[torch.nn.Module]:
+):
     """
-    Load a complete ClaudinoGPT model including its architecture from disk.
-    
-    Args:
-        model_path: Full path to the complete model file
-        device: Device to load the model on ('cpu' or 'cuda')
-    
-    Returns:
-        torch.nn.Module: Loaded model instance if successful, None otherwise
+    Converte um checkpoint de treinamento em um modelo de inferência (apenas state_dict do modelo).
+    Salva apenas os pesos do modelo, pronto para carregar com `model.load_state_dict()`.
     """
-    try:
-        model_file_path = Path(model_path)
-        
-        # Check if file exists
-        if not model_file_path.exists():
-            print(f"Model file {model_path} does not exist")
-            return None
-            
-        # Load the entire saved model
-        model = torch.load(model_path, map_location=device)
-        
-        print(f"Complete model successfully loaded from {model_path}")
-        return model
-        
-    except Exception as e:
-        print(f"Error loading complete model: {e}")
-        return None
-
-def load_claudino_gpt_model_with_config(
-    model_path: Union[str, Path], 
-    config_path: Optional[Union[str, Path]] = None,
-    device: str = 'cpu'
-) -> Optional[Dict[str, Any]]:
-    """
-    Load a ClaudinoGPT model from disk along with its configuration.
-    
-    Args:
-        model_path: Full path to the model state dictionary file
-        config_path: Path to the configuration file (optional)
-        model_class: The ClaudinoGPT model class to recreate the model structure
-        device: Device to load the model on ('cpu' or 'cuda')
-    
-    Returns:
-        Dict containing 'model': loaded model and 'config': loaded configuration if available
-    """
-    try:
-        # Convert to Path objects for easier handling
-        model_path = Path(model_path)
-        
-        # Check if model file exists
-        if not model_path.exists():
-            print(f"Model file {model_path} does not exist")
-            return None
-            
-        if not model_path.is_file():
-            print(f"{model_path} is not a file")
-            return None
-        
-        # Load model state dict
-        model_state_dict = torch.load(model_path, map_location=device)
-        
-        # If config path is provided, load it
-        config = {}
-        if config_path:
-            config_file_path = Path(config_path)
-            if config_file_path.exists():
-                import json
-                with open(config_file_path, 'r') as f:
-                    config = json.load(f)
-            else:
-                print(f"Config file {config_path} does not exist")
-        
-        # Return both loaded components
-        return {
-            'model': model_state_dict,
-            'config': config
-        }
-        
-    except Exception as e:
-        print(f"Error loading model with config: {e}")
-        return None
-
-def load_claudino_gpt_model_from_state_dict(
-    model_path: Union[str, Path], 
-    model_class: Any,
-    device: str
-) -> Optional[torch.nn.Module]:
-    """
-    Load a ClaudinoGPT model from disk using its state dictionary and recreate the model structure.
-    
-    Args:
-        model_path: Full path to the model state dict file
-        model_class: The ClaudinoGPT model class used for recreation
-        device: Device to load the model on ('cpu' or 'cuda')
-    
-    Returns:
-        Optional[torch.nn.Module]: Loaded model instance if successful, None otherwise
-    """
-    try:
-        # Convert to Path object for easier handling
-        model_file_path = Path(model_path)
-        
-        # Check if file exists
-        if not model_file_path.exists():
-            print(f"Model file {model_path} does not exist")
-            return None
-            
-        if not model_file_path.is_file():
-            print(f"{model_path} is not a file")
-            return None
-        
-        # Load the state dictionary
-        state_dict = torch.load(model_path, map_location=device)
-        
-        # Recreate the model instance and load the state dict
-        model = model_class()
-        model.load_state_dict(state_dict)
-        model.to(device)
-        model.eval()
-        
-        print(f"Model successfully loaded from {model_path}")
-        return model
-        
-    except Exception as e:
-        print(f"Error loading model from state dict: {e}")
-        return None
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model_state = checkpoint['model_state_dict']
+    torch.save(model_state, output_model_path)
+    print(f"Modelo de inferência salvo em: {output_model_path}")

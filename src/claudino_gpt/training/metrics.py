@@ -14,8 +14,8 @@ def calculate_batch_loss(
         device: str
 ) -> torch.Tensor:
     
-    input_batch.to(device)
-    target_batch.to(device)
+    input_batch = input_batch.to(device)
+    target_batch = target_batch.to(device)
 
     logits = model(input_batch)[:, -1, :]
 
