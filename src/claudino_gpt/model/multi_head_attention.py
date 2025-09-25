@@ -25,7 +25,7 @@ class MultiHeadFlashAttention(nn.Module):
         self._dropout_rate = dropout_rate
 
     def forward(self, x):
-        batch_size, num_tokens, embed_dim = x.shape
+        batch_size, num_tokens, _ = x.shape
         qkv = self._qkv(x)
         qkv = qkv.view(batch_size, num_tokens, 3, self._number_of_heads, self._heads_dimension)
         qkv = qkv.permute(2, 0, 3, 1, 4)

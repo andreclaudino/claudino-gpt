@@ -16,7 +16,6 @@ def calculate_batch_loss(
     
     input_batch.to(device)
     target_batch.to(device)
-    model.to(device)
 
     logits = model(input_batch)[:, -1, :]
 
