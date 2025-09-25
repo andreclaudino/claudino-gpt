@@ -34,7 +34,7 @@ def run_training_loop(
 
 
     for epoch in range(configuration.number_of_epochs):
-        model.to(device)
+        model = model.to(device)
         model.train()
 
         print(f"Epoch {epoch + 1}/{configuration.number_of_epochs}")
