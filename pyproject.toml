@@ -35,6 +35,9 @@ torch = [
   { index = "pytorch-cu126", marker = "sys_platform == 'linux'" },
 ]
 
+[tool.uv]
+package = true
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
