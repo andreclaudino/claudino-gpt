@@ -4,17 +4,17 @@ learning_rate = 0.0004
 weight_decay = 0.1
 
 batch_size = 32
-number_of_epochs = 6
+number_of_epochs = 1
 data_loading_workers_count = 0
 
-evaluation_frequency = 800
+evaluation_frequency = 1000
 evaluation_iteration = 10
 
 train_source_path = "datasets/tokenized/split=train"
 validation_source_path = "datasets/tokenized/split=test"
 
-checkpoint_frequency = 800
+checkpoint_frequency = 1000
 
-output_path = "../claudino_gpt_trained/training_0002"
+output_path = "../claudino_gpt_trained/training_0003"
 
 total_models_to_keep = 10

@@ -48,13 +48,53 @@ def generate_encoded_sentence(
 
 def generate_text(
     model: ClaudinoGPT,
-    encoded_sentence: torch.Tensor,
+    prompt: str,
     max_new_tokens: int,
     context_length: int,
     tokenizer: AutoTokenizer
 ) -> str:
-    encoded_sentence = generate_encoded_sentence(model, encoded_sentence, max_new_tokens, context_length)
-    encoded_sentence_list = encoded_sentence.squeeze(0).tolist()
-    decoded_sentence = tokenizer.decode(encoded_sentence_list) # type: ignore
+    """
+    Gera texto a partir de um prompt em string, codificando-o com o tokenizer
+    e ajustando o comprimento para `context_length` com left-padding ou truncamento.
     
-    return decoded_sentence
+    Padding é feito no início da sequência usando:
+        pad_token_id = tokenizer.pad_token_id if defined, else tokenizer.unk_token_id
+    """
+    # Codifica o prompt em IDs de tokens
+    encoded = tokenizer.encode(prompt, add_special_tokens=False)  # type: ignore # lista de inteiros
+
+    # Converte para tensor
+    encoded_tensor = torch.tensor(encoded, dtype=torch.long)
+
+    # Determina o token de padding com fallback seguro
+    pad_token_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.unk_token_id # type: ignore
+    if pad_token_id is None:
+        # Caso extremo: nem pad_token_id nem unk_token_id estão definidos
+        pad_token_id = 0  # fallback absoluto (comum em muitos tokenizers)
+
+    # Ajusta o comprimento para context_length
+    if encoded_tensor.size(0) > context_length:
+        # Trunca do início: mantém os últimos `context_length` tokens
+        encoded_tensor = encoded_tensor[-context_length:]
+    else:
+        # Preenche no início (left-padding)
+        pad_length = context_length - encoded_tensor.size(0)
+        pad_tensor = torch.full((pad_length,), pad_token_id, dtype=torch.long)
+        encoded_tensor = torch.cat([pad_tensor, encoded_tensor], dim=0)
+
+    # Adiciona dimensão de batch: (1, context_length)
+    encoded_tensor = encoded_tensor.unsqueeze(0)
+
+    # Gera nova sequência
+    generated_tensor = generate_encoded_sentence(
+        model=model,
+        encoded_sentence=encoded_tensor,
+        max_new_tokens=max_new_tokens,
+        context_length=context_length
+    )
+
+    # Decodifica para string
+    generated_ids = generated_tensor.squeeze(0).tolist()
+    decoded_text = tokenizer.decode(generated_ids, skip_special_tokens=True) # type: ignore
+
+    return decoded_text

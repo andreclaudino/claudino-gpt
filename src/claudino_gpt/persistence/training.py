@@ -15,6 +15,7 @@ def load_parquet_data(
     batch_size: int,
     max_seq_length: int,
     data_loading_workers_count: int,
+    random_seed: int,
     infinite: bool = False,
     epochs: int = 1,
 ) -> DataLoader:
@@ -48,6 +49,7 @@ def load_parquet_data(
         features_column_name=features_column_name,
         label_column_name=label_column_name,
         max_seq_length=max_seq_length,
+        random_seed=random_seed,
     )
 
     # Aplica repetição ou modo infinito
@@ -63,7 +65,6 @@ def load_parquet_data(
     dataset_loader = DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=False,  # Mantido como False (já que é lazy e ordenado)
         pin_memory=True,
         num_workers=data_loading_workers_count
     )

@@ -19,6 +19,7 @@ class LazyParquetDataset(Dataset):
         features_column_name: str,
         label_column_name: str,
         max_seq_length: int,
+        random_seed: int,
     ):
         """
         Initialize the dataset.
@@ -37,6 +38,8 @@ class LazyParquetDataset(Dataset):
         # Pre-calculate the starting index and length for each file
         self._file_index_map = []  # List of (start_idx, end_idx, file_path)
         self._total_length = 0
+
+        self._random_seed = random_seed
 
         for file_path in tqdm(self.file_paths, desc="Tota files loaded"):
             # Get the number of rows in the file without loading its content
@@ -83,7 +86,7 @@ class LazyParquetDataset(Dataset):
             file_path,
             n_rows=1,
             row_index_offset=local_index
-        )
+        )\
 
         # Cast the features column
         df = df.with_columns(
@@ -91,8 +94,8 @@ class LazyParquetDataset(Dataset):
         )
 
         # Extract the single row as tensors
-        features = df[self.features_column_name].to_torch()
-        label = df[self.label_column_name].to_torch()
+        features = df[self.features_column_name].shuffle(seed=self._random_seed).to_torch().squeeze()
+        label = df[self.label_column_name].shuffle(seed=self._random_seed).to_torch()
 
         # Since we loaded one row, features and label are tensors of shape (1, ...)
         # We squeeze to remove the batch dimension of 1

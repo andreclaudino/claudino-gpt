@@ -34,7 +34,8 @@ def main(training_configuration_path: str, model_configuration_path: str):
         batch_size=training_configuration.batch_size,
         max_seq_length=model_configuration.context_legth,
         data_loading_workers_count=training_configuration.data_loading_workers_count,
-        epochs=training_configuration.number_of_epochs
+        epochs=training_configuration.number_of_epochs,
+        random_seed=training_configuration.random_seed
     )
 
     validation_dataset = load_parquet_data(
@@ -44,7 +45,8 @@ def main(training_configuration_path: str, model_configuration_path: str):
         batch_size=training_configuration.batch_size,
         max_seq_length=model_configuration.context_legth,
         data_loading_workers_count=training_configuration.data_loading_workers_count,
-        infinite=True
+        infinite=True,
+        random_seed=training_configuration.random_seed
     )
     
     optimizer = create_optimizer(model, training_configuration)

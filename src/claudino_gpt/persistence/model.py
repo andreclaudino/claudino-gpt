@@ -1,5 +1,6 @@
 import os
 import glob
+from claudino_gpt.configurations.model_configuration import ModelConfiguration
 from claudino_gpt.configurations.training_configuration import TrainingConfiguration
 import torch
 from typing import Optional, Tuple
@@ -139,3 +140,17 @@ def convert_checkpoint_to_inference_model(
     model_state = checkpoint['model_state_dict']
     torch.save(model_state, output_model_path)
     print(f"Modelo de inferência salvo em: {output_model_path}")
+
+
+def load_model_from_checkpoint(
+    model_configuration: ModelConfiguration,
+    checkpoint_path: str,
+    device: str
+) -> ClaudinoGPT:
+    model = ClaudinoGPT(model_configuration)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model_state = checkpoint['model_state_dict']
+    model.load_state_dict(model_state)
+
+    return model
+    
